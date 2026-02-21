@@ -2,108 +2,155 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Tablero de Morbilidad Dinámico</title>
+    <title>Dashboard Morbilidad con Filtros</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #f4f7f9; padding: 20px; font-family: sans-serif; }
-        .card { border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .kpi { font-size: 2.5rem; font-weight: bold; color: #1a2a6c; }
-        .loading { text-align: center; padding: 50px; }
+        body { background-color: #f4f7f6; padding: 20px; font-family: sans-serif; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .filter-section { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #dee2e6; }
+        .kpi-val { font-size: 2rem; font-weight: bold; color: #1a2a6c; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="loader" class="loading">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-3">Conectando con los datos de Google Drive...</p>
+<div class="container-fluid">
+    <h2 class="text-center mb-4" style="color: #1a2a6c;">Dashboard de Morbilidad Interactivo</h2>
+
+    <div class="card p-3 mb-4 text-center">
+        <label class="fw-bold mb-2">1. Carga tu archivo MORBILIDAD.csv:</label>
+        <input type="file" id="fileInput" accept=".csv" class="form-control d-inline-block w-auto mx-auto">
     </div>
 
-    <div id="app" style="display:none;">
-        <div class="text-center mb-5">
-            <h1 class="fw-bold" style="color: #1a2a6c;">Análisis de Morbilidad 2026</h1>
-            <span class="badge bg-success">Datos Sincronizados</span>
+    <div class="filter-section row" id="filtros-container" style="display: none;">
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Filtrar por Servicio:</label>
+            <select id="filtroServicio" class="form-select"><option value="todos">Todos los Servicios</option></select>
         </div>
-
-        <div class="row mb-4">
-            <div class="col-md-4"><div class="card p-3 text-center"><h6>CASOS TOTALES</h6><div id="total" class="kpi">0</div></div></div>
-            <div class="col-md-4"><div class="card p-3 text-center"><h6>MUJERES</h6><div id="fem" class="kpi" style="color: #d63384;">0</div></div></div>
-            <div class="col-md-4"><div class="card p-3 text-center"><h6>HOMBRES</h6><div id="masc" class="kpi" style="color: #0d6efd;">0</div></div></div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Filtrar por Mes:</label>
+            <select id="filtroMes" class="form-select"><option value="todos">Todos los Meses</option></select>
         </div>
-
-        <div class="row">
-            <div class="col-md-8"><div class="card p-4"><h5>Top Servicios</h5><canvas id="barras"></canvas></div></div>
-            <div class="col-md-4"><div class="card p-4"><h5>Género</h5><canvas id="dona"></canvas></div></div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Filtrar por Año:</label>
+            <select id="filtroAnio" class="form-select"><option value="todos">Todos los Años</option></select>
         </div>
     </div>
 
-    <div id="error-box" class="alert alert-danger mt-5" style="display:none;">
-        <h4>⚠️ No se pudo cargar el tablero</h4>
-        <p id="error-txt"></p>
-        <hr>
-        <strong>¿Cómo lo soluciono?</strong><br>
-        1. Sube este archivo HTML a <strong>Netlify Drop</strong> o <strong>GitHub Pages</strong>. Google bloquea la carga si abres el archivo directamente desde tu carpeta local.
+    <div class="row text-center mb-4">
+        <div class="col-md-4"><div class="card p-3"><h6>TOTAL FILTRADO</h6><div id="kpi-total" class="kpi-val">0</div></div></div>
+        <div class="col-md-4"><div class="card p-3"><h6>FEMENINO</h6><div id="kpi-fem" class="kpi-val text-danger">0</div></div></div>
+        <div class="col-md-4"><div class="card p-3"><h6>MASCULINO</h6><div id="kpi-masc" class="kpi-val text-primary">0</div></div></div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8"><div class="card p-4"><h5>Casos por Servicio</h5><canvas id="chartBarras"></canvas></div></div>
+        <div class="col-md-4"><div class="card p-4"><h5>Distribución Género</h5><canvas id="chartDona"></canvas></div></div>
     </div>
 </div>
 
 <script>
-const ID_ARCHIVO = '1cMG2OFQmarqSzu5F2MP6SwRe5brPgLNB';
-const URL_DRIVE = `https://docs.google.com/uc?export=download&id=${ID_ARCHIVO}`;
+    let datosOriginales = [];
+    let chartBarras, chartDona;
 
-async function iniciar() {
-    try {
-        const res = await fetch(URL_DRIVE);
-        if (!res.ok) throw new Error("Google Drive denegó el acceso (CORS o Permisos).");
-        
-        const texto = await res.text();
-        const lineas = texto.split('\n').filter(l => l.trim() !== '').map(l => l.split(';'));
-        const datos = lineas.slice(1);
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const reader = new FileReader();
+        reader.onload = function() {
+            const contenido = reader.result;
+            const filas = contenido.split('\n').filter(l => l.trim() !== '').map(l => l.split(';'));
+            
+            // Convertir a objetos para manejar mejor los filtros
+            datosOriginales = filas.slice(1).map(col => ({
+                servicio: col[0]?.trim(),
+                fecha: col[1]?.trim(),
+                mes: col[2]?.trim(),
+                cie10: col[3]?.trim(),
+                genero: col[7]?.trim(),
+                anio: col[1]?.split('/')[2] // Extrae el año de la fecha (DD/MM/AAAA)
+            }));
 
-        let f = 0, m = 0;
-        let servicios = {};
+            poblarFiltros();
+            document.getElementById('filtros-container').style.display = 'flex';
+            procesarYFiltrar();
+        };
+        reader.readAsText(e.target.files[0]);
+    });
 
-        datos.forEach(col => {
-            if (col.length < 8) return;
-            // Género en columna 7, Servicio en columna 0
-            if (col[7].trim() === 'F') f++;
-            if (col[7].trim() === 'M') m++;
-            servicios[col[0]] = (servicios[col[0]] || 0) + 1;
+    function poblarFiltros() {
+        const servicios = [...new Set(datosOriginales.map(d => d.servicio))].sort();
+        const meses = [...new Set(datosOriginales.map(d => d.mes))].sort();
+        const anios = [...new Set(datosOriginales.map(d => d.anio))].sort();
+
+        llenarSelect('filtroServicio', servicios);
+        llenarSelect('filtroMes', meses);
+        llenarSelect('filtroAnio', anios);
+    }
+
+    function llenarSelect(id, lista) {
+        const select = document.getElementById(id);
+        select.innerHTML = `<option value="todos">Todos</option>`;
+        lista.forEach(item => {
+            if(item) select.innerHTML += `<option value="${item}">${item}</option>`;
+        });
+    }
+
+    // Escuchar cambios en los filtros
+    document.querySelectorAll('.form-select').forEach(select => {
+        select.addEventListener('change', procesarYFiltrar);
+    });
+
+    function procesarYFiltrar() {
+        const selServicio = document.getElementById('filtroServicio').value;
+        const selMes = document.getElementById('filtroMes').value;
+        const selAnio = document.getElementById('filtroAnio').value;
+
+        const filtrados = datosOriginales.filter(d => {
+            return (selServicio === 'todos' || d.servicio === selServicio) &&
+                   (selMes === 'todos' || d.mes === selMes) &&
+                   (selAnio === 'todos' || d.anio === selAnio);
         });
 
-        document.getElementById('total').innerText = datos.length;
-        document.getElementById('fem').innerText = f;
-        document.getElementById('masc').innerText = m;
+        actualizarDashboard(filtrados);
+    }
 
-        // Gráfico de Barras
-        new Chart(document.getElementById('barras'), {
+    function actualizarDashboard(data) {
+        let f = 0, m = 0;
+        const servMap = {};
+
+        data.forEach(d => {
+            if (d.genero === 'F') f++;
+            if (d.genero === 'M') m++;
+            servMap[d.servicio] = (servMap[d.servicio] || 0) + 1;
+        });
+
+        document.getElementById('kpi-total').innerText = data.length;
+        document.getElementById('kpi-fem').innerText = f;
+        document.getElementById('kpi-masc').innerText = m;
+
+        renderCharts(servMap, f, m);
+    }
+
+    function renderCharts(servs, f, m) {
+        if (chartBarras) chartBarras.destroy();
+        if (chartDona) chartDona.destroy();
+
+        chartBarras = new Chart(document.getElementById('chartBarras'), {
             type: 'bar',
             data: {
-                labels: Object.keys(servicios),
-                datasets: [{ label: 'Consultas', data: Object.values(servicios), backgroundColor: '#1a2a6c' }]
+                labels: Object.keys(servs),
+                datasets: [{ label: 'Casos', data: Object.values(servs), backgroundColor: '#1a2a6c' }]
             },
             options: { indexAxis: 'y' }
         });
 
-        // Gráfico Dona
-        new Chart(document.getElementById('dona'), {
+        chartDona = new Chart(document.getElementById('chartDona'), {
             type: 'doughnut',
             data: {
                 labels: ['Mujeres', 'Hombres'],
                 datasets: [{ data: [f, m], backgroundColor: ['#d63384', '#0d6efd'] }]
             }
         });
-
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-
-    } catch (e) {
-        document.getElementById('loader').style.display = 'none';
-        document.getElementById('error-box').style.display = 'block';
-        document.getElementById('error-txt').innerText = e.message;
     }
-}
-iniciar();
 </script>
 </body>
 </html>
