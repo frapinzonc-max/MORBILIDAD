@@ -2,155 +2,232 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard Morbilidad con Filtros</title>
+    <title>Dashboard Morbilidad Pro - Todos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #f4f7f6; padding: 20px; font-family: sans-serif; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .filter-section { background: #fff; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #dee2e6; }
-        .kpi-val { font-size: 2rem; font-weight: bold; color: #1a2a6c; }
+        body { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; }
+        .card { border: none; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .kpi-card { background: linear-gradient(135deg, #1e293b, #334155); color: white; }
+        .kpi-num { font-size: 2.8rem; font-weight: 800; letter-spacing: -1px; }
+        .filter-bar { background: white; padding: 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        .table-custom { background: white; border-radius: 16px; overflow: hidden; }
+        thead { background-color: #0f172a; color: white; }
+        .form-select { border-radius: 8px; border: 1px solid #cbd5e1; padding: 10px; }
+        .form-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
     </style>
 </head>
 <body>
 
 <div class="container-fluid">
-    <h2 class="text-center mb-4" style="color: #1a2a6c;">Dashboard de Morbilidad Interactivo</h2>
-
-    <div class="card p-3 mb-4 text-center">
-        <label class="fw-bold mb-2">1. Carga tu archivo MORBILIDAD.csv:</label>
-        <input type="file" id="fileInput" accept=".csv" class="form-control d-inline-block w-auto mx-auto">
+    <div class="text-center mb-5">
+        <h1 class="fw-bold" style="color: #0f172a;">Estadísticas de Morbilidad</h1>
+        <p class="text-muted">Cargue su archivo para visualizar el análisis completo</p>
     </div>
 
-    <div class="filter-section row" id="filtros-container" style="display: none;">
-        <div class="col-md-4">
-            <label class="form-label fw-bold">Filtrar por Servicio:</label>
-            <select id="filtroServicio" class="form-select"><option value="todos">Todos los Servicios</option></select>
-        </div>
-        <div class="col-md-4">
-            <label class="form-label fw-bold">Filtrar por Mes:</label>
-            <select id="filtroMes" class="form-select"><option value="todos">Todos los Meses</option></select>
-        </div>
-        <div class="col-md-4">
-            <label class="form-label fw-bold">Filtrar por Año:</label>
-            <select id="filtroAnio" class="form-select"><option value="todos">Todos los Años</option></select>
-        </div>
+    <div class="card p-4 mb-4 text-center border-primary" style="border-style: dashed !important; background-color: #f1f5f9;">
+        <label class="fw-bold mb-2 d-block">Paso 1: Seleccione su archivo MORBILIDAD.csv</label>
+        <input type="file" id="fileInput" accept=".csv" class="form-control d-inline-block w-auto mx-auto shadow-sm">
     </div>
 
-    <div class="row text-center mb-4">
-        <div class="col-md-4"><div class="card p-3"><h6>TOTAL FILTRADO</h6><div id="kpi-total" class="kpi-val">0</div></div></div>
-        <div class="col-md-4"><div class="card p-3"><h6>FEMENINO</h6><div id="kpi-fem" class="kpi-val text-danger">0</div></div></div>
-        <div class="col-md-4"><div class="card p-3"><h6>MASCULINO</h6><div id="kpi-masc" class="kpi-val text-primary">0</div></div></div>
-    </div>
+    <div id="seccion-app" style="display: none;">
+        <div class="filter-bar row shadow-sm">
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary small">SERVICIO</label>
+                <select id="fServicio" class="form-select"></select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary small">MES</label>
+                <select id="fMes" class="form-select"></select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary small">AÑO</label>
+                <select id="fAnio" class="form-select"></select>
+            </div>
+        </div>
 
-    <div class="row">
-        <div class="col-md-8"><div class="card p-4"><h5>Casos por Servicio</h5><canvas id="chartBarras"></canvas></div></div>
-        <div class="col-md-4"><div class="card p-4"><h5>Distribución Género</h5><canvas id="chartDona"></canvas></div></div>
+        <div class="row text-center">
+            <div class="col-md-4"><div class="card kpi-card p-3"><h6>CASOS FILTRADOS</h6><div id="val-total" class="kpi-num">0</div></div></div>
+            <div class="col-md-4"><div class="card p-3" style="border-left: 8px solid #ec4899;"><h6>FEMENINO</h6><div id="val-fem" class="kpi-num" style="color:#ec4899;">0</div></div></div>
+            <div class="col-md-4"><div class="card p-3" style="border-left: 8px solid #3b82f6;"><h6>MASCULINO</h6><div id="val-masc" class="kpi-num" style="color:#3b82f6;">0</div></div></div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card p-4">
+                    <h5 class="fw-bold mb-4">Volumen por Servicio</h5>
+                    <canvas id="chartBarras" height="300"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card p-4">
+                    <h5 class="fw-bold mb-4">Distribución Género</h5>
+                    <canvas id="chartDona"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-4 table-custom">
+            <h5 class="mb-4 text-dark fw-bold">Top 10 Diagnósticos (CIE10)</h5>
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th width="50">#</th>
+                        <th width="100">CIE10</th>
+                        <th>Descripción Diagnóstico</th>
+                        <th width="120">Frecuencia</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-cie"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
-    let datosOriginales = [];
-    let chartBarras, chartDona;
+    let rawData = [];
+    let barChart, donaChart;
 
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const reader = new FileReader();
         reader.onload = function() {
-            const contenido = reader.result;
-            const filas = contenido.split('\n').filter(l => l.trim() !== '').map(l => l.split(';'));
-            
-            // Convertir a objetos para manejar mejor los filtros
-            datosOriginales = filas.slice(1).map(col => ({
-                servicio: col[0]?.trim(),
-                fecha: col[1]?.trim(),
-                mes: col[2]?.trim(),
-                cie10: col[3]?.trim(),
-                genero: col[7]?.trim(),
-                anio: col[1]?.split('/')[2] // Extrae el año de la fecha (DD/MM/AAAA)
+            // Procesar CSV con separador ";"
+            const filas = reader.result.split('\n').filter(l => l.trim() !== '').map(l => l.split(';'));
+            rawData = filas.slice(1).map(c => ({
+                servicio: c[0]?.trim(),
+                mes: c[2]?.trim(),
+                cie10: c[3]?.trim(),
+                desc: c[4]?.trim(),
+                genero: c[7]?.trim(),
+                anio: c[1]?.split('/')[2] // Extraer año de DD/MM/AAAA
             }));
-
+            
             poblarFiltros();
-            document.getElementById('filtros-container').style.display = 'flex';
-            procesarYFiltrar();
+            
+            // Forzar que los selects marquen "Todos" al inicio
+            document.getElementById('fServicio').value = 'Todos';
+            document.getElementById('fMes').value = 'Todos';
+            document.getElementById('fAnio').value = 'Todos';
+
+            document.getElementById('seccion-app').style.display = 'block';
+            filtrarYRenderizar();
         };
         reader.readAsText(e.target.files[0]);
     });
 
     function poblarFiltros() {
-        const servicios = [...new Set(datosOriginales.map(d => d.servicio))].sort();
-        const meses = [...new Set(datosOriginales.map(d => d.mes))].sort();
-        const anios = [...new Set(datosOriginales.map(d => d.anio))].sort();
-
-        llenarSelect('filtroServicio', servicios);
-        llenarSelect('filtroMes', meses);
-        llenarSelect('filtroAnio', anios);
+        const setup = (id, llave) => {
+            // Crear lista única de elementos
+            const items = ['Todos', ...new Set(rawData.map(d => d[llave]))].sort();
+            document.getElementById(id).innerHTML = items.map(i => `<option value="${i}">${i}</option>`).join('');
+        };
+        setup('fServicio', 'servicio');
+        setup('fMes', 'mes');
+        setup('fAnio', 'anio');
     }
 
-    function llenarSelect(id, lista) {
-        const select = document.getElementById(id);
-        select.innerHTML = `<option value="todos">Todos</option>`;
-        lista.forEach(item => {
-            if(item) select.innerHTML += `<option value="${item}">${item}</option>`;
-        });
+    // Escuchar cambios en los selects
+    document.querySelectorAll('.form-select').forEach(s => s.addEventListener('change', filtrarYRenderizar));
+
+    function filtrarYRenderizar() {
+        const sS = document.getElementById('fServicio').value;
+        const sM = document.getElementById('fMes').value;
+        const sA = document.getElementById('fAnio').value;
+
+        const filtered = rawData.filter(d => 
+            (sS === 'Todos' || d.servicio === sS) &&
+            (sM === 'Todos' || d.mes === sM) &&
+            (sA === 'Todos' || d.anio === sA)
+        );
+
+        actualizarUI(filtered);
     }
 
-    // Escuchar cambios en los filtros
-    document.querySelectorAll('.form-select').forEach(select => {
-        select.addEventListener('change', procesarYFiltrar);
-    });
-
-    function procesarYFiltrar() {
-        const selServicio = document.getElementById('filtroServicio').value;
-        const selMes = document.getElementById('filtroMes').value;
-        const selAnio = document.getElementById('filtroAnio').value;
-
-        const filtrados = datosOriginales.filter(d => {
-            return (selServicio === 'todos' || d.servicio === selServicio) &&
-                   (selMes === 'todos' || d.mes === selMes) &&
-                   (selAnio === 'todos' || d.anio === selAnio);
-        });
-
-        actualizarDashboard(filtrados);
-    }
-
-    function actualizarDashboard(data) {
+    function actualizarUI(data) {
         let f = 0, m = 0;
-        const servMap = {};
+        const srvMap = {};
+        const cieMap = {};
 
         data.forEach(d => {
-            if (d.genero === 'F') f++;
-            if (d.genero === 'M') m++;
-            servMap[d.servicio] = (servMap[d.servicio] || 0) + 1;
+            // Contar géneros
+            if(d.genero === 'F') f++; else if(d.genero === 'M') m++;
+            // Contar servicios
+            srvMap[d.servicio] = (srvMap[d.servicio] || 0) + 1;
+            // Contar CIE10
+            if(d.cie10) {
+                cieMap[d.cie10] = { count: (cieMap[d.cie10]?.count || 0) + 1, desc: d.desc };
+            }
         });
 
-        document.getElementById('kpi-total').innerText = data.length;
-        document.getElementById('kpi-fem').innerText = f;
-        document.getElementById('kpi-masc').innerText = m;
+        document.getElementById('val-total').innerText = data.length.toLocaleString();
+        document.getElementById('val-fem').innerText = f.toLocaleString();
+        document.getElementById('val-masc').innerText = m.toLocaleString();
 
-        renderCharts(servMap, f, m);
+        // Lógica Tabla Top 10
+        const top10 = Object.entries(cieMap)
+            .sort((a,b) => b[1].count - a[1].count)
+            .slice(0, 10);
+
+        document.getElementById('tabla-cie').innerHTML = top10.map((item, i) => `
+            <tr>
+                <td><span class="text-muted small">${i+1}</span></td>
+                <td><span class="badge bg-dark">${item[0]}</span></td>
+                <td><div class="small text-wrap">${item[1].desc}</div></td>
+                <td class="fw-bold text-end">${item[1].count.toLocaleString()}</td>
+            </tr>`).join('');
+
+        renderCharts(srvMap, f, m);
     }
 
-    function renderCharts(servs, f, m) {
-        if (chartBarras) chartBarras.destroy();
-        if (chartDona) chartDona.destroy();
+    function renderCharts(srvs, f, m) {
+        // Animaciones configuradas para Chart.js
+        const animOptions = {
+            duration: 1200,
+            easing: 'easeOutQuart'
+        };
 
-        chartBarras = new Chart(document.getElementById('chartBarras'), {
+        if (barChart) barChart.destroy();
+        barChart = new Chart(document.getElementById('chartBarras'), {
             type: 'bar',
             data: {
-                labels: Object.keys(servs),
-                datasets: [{ label: 'Casos', data: Object.values(servs), backgroundColor: '#1a2a6c' }]
+                labels: Object.keys(srvs),
+                datasets: [{ 
+                    label: 'Cantidad de Atenciones', 
+                    data: Object.values(srvs), 
+                    backgroundColor: 'rgba(51, 65, 85, 0.8)',
+                    borderColor: '#1e293b',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
             },
-            options: { indexAxis: 'y' }
+            options: { 
+                animation: animOptions, 
+                indexAxis: 'y', 
+                plugins: { legend: { display: false } },
+                scales: { x: { grid: { display: false } } }
+            }
         });
 
-        chartDona = new Chart(document.getElementById('chartDona'), {
+        if (donaChart) donaChart.destroy();
+        donaChart = new Chart(document.getElementById('chartDona'), {
             type: 'doughnut',
             data: {
-                labels: ['Mujeres', 'Hombres'],
-                datasets: [{ data: [f, m], backgroundColor: ['#d63384', '#0d6efd'] }]
+                labels: ['Femenino', 'Masculino'],
+                datasets: [{ 
+                    data: [f, m], 
+                    backgroundColor: ['#ec4899', '#3b82f6'],
+                    hoverOffset: 20,
+                    borderWidth: 0
+                }]
+            },
+            options: { 
+                animation: animOptions,
+                cutout: '75%',
+                plugins: { legend: { position: 'bottom' } }
             }
         });
     }
 </script>
 </body>
 </html>
+
